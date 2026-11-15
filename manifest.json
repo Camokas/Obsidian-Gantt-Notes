@@ -1,0 +1,9 @@
+{
+  "id": "bar-gantt",
+  "name": "Bar Gantt",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Gantt timeline in a note: lanes, draggable bars, notes. Plain-text storage, friendly to Remotely Save.",
+  "author": "Camoka",
+  "isDesktopOnly": false
+}
