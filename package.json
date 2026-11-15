@@ -1,5 +1,5 @@
 {
-  "name": "bar-gantt",
+  "name": "gantt-notes",
   "version": "0.1.0",
   "description": "Gantt timeline notes for Obsidian",
   "main": "main.js",

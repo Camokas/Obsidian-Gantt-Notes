@@ -1,6 +1,6 @@
 {
-  "id": "bar-gantt",
-  "name": "Bar Gantt",
+  "id": "gantt-notes",
+  "name": "Gantt Notes",
   "version": "0.1.0",
   "minAppVersion": "1.4.0",
   "description": "Gantt timeline in a note: lanes, draggable bars, notes. Plain-text storage, friendly to Remotely Save.",

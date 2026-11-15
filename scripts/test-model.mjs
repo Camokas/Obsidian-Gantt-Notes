@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 
-const out = join(tmpdir(), "bar-gantt-model.test.mjs");
+const out = join(tmpdir(), "gantt-notes-model.test.mjs");
 await build({ entryPoints: ["src/model.ts"], bundle: true, format: "esm", outfile: out, logLevel: "silent" });
 const m = await import("file:///" + out.replace(/\\/g, "/"));
 

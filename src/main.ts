@@ -4,7 +4,7 @@ import { GanttView, VIEW_TYPE } from "./view";
 import { FM_KEY, GanttData, PALETTE, buildNote, hasGanttFrontmatter, newNoteText, parseNote, todayDay, uid } from "./model";
 import { t } from "./i18n";
 
-export default class BarGanttPlugin extends Plugin {
+export default class GanttNotesPlugin extends Plugin {
   settings!: GanttSettings;
   /** leaves the user explicitly flipped to Markdown → leave them alone for that file */
   private mdOverride = new WeakMap<WorkspaceLeaf, string>();

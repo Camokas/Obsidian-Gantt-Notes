@@ -11,9 +11,9 @@ if (!existsSync(join(vault, ".obsidian"))) {
   console.error(`Not an Obsidian vault (no .obsidian folder): ${vault}`);
   process.exit(1);
 }
-const dir = join(vault, ".obsidian", "plugins", "bar-gantt");
+const dir = join(vault, ".obsidian", "plugins", "gantt-notes");
 mkdirSync(dir, { recursive: true });
 for (const f of ["main.js", "manifest.json", "styles.css"]) {
   copyFileSync(f, join(dir, f));
 }
-console.log(`Deployed to ${dir}. Reload Obsidian and enable "Bar Gantt".`);
+console.log(`Deployed to ${dir}. Reload Obsidian and enable "Gantt Notes".`);

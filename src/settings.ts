@@ -1,5 +1,5 @@
 import { App, Platform, PluginSettingTab, Setting } from "obsidian";
-import type BarGanttPlugin from "./main";
+import type GanttNotesPlugin from "./main";
 import { t } from "./i18n";
 
 export interface GanttSettings {
@@ -29,7 +29,7 @@ export const defaultSettings = (): GanttSettings => ({
 });
 
 export class GanttSettingTab extends PluginSettingTab {
-  constructor(app: App, private plugin: BarGanttPlugin) {
+  constructor(app: App, private plugin: GanttNotesPlugin) {
     super(app, plugin);
   }
 

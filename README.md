@@ -1,6 +1,6 @@
 <div align="center">
 
-# Bar Gantt
+# Gantt Notes
 
 **A Gantt timeline that lives inside an ordinary Obsidian note.**
 
@@ -29,8 +29,8 @@ Plain-text storage that syncs cleanly with [Remotely Save](https://github.com/re
 
 ### Manual
 1. Download `main.js`, `manifest.json` and `styles.css` from the [latest release](../../releases/latest).
-2. Put them in `<your vault>/.obsidian/plugins/bar-gantt/`.
-3. In Obsidian: **Settings → Community plugins**, turn off Restricted mode, enable **Bar Gantt**.
+2. Put them in `<your vault>/.obsidian/plugins/gantt-notes/`.
+3. In Obsidian: **Settings → Community plugins**, turn off Restricted mode, enable **Gantt Notes**.
 
 ### With BRAT
 Add this repository in the [BRAT](https://github.com/TfTHacker/obsidian42-brat) plugin.

@@ -1,5 +1,5 @@
 import { Menu, Platform, TextFileView, WorkspaceLeaf, setIcon } from "obsidian";
-import type BarGanttPlugin from "./main";
+import type GanttNotesPlugin from "./main";
 import {
   Bar,
   GanttData,
@@ -17,7 +17,7 @@ import {
 import { BarModal, LaneModal, confirmDialog } from "./modals";
 import { locale, t } from "./i18n";
 
-export const VIEW_TYPE = "bar-gantt-view";
+export const VIEW_TYPE = "gantt-notes-view";
 
 const MIN_PPD = 2.5;
 const MAX_PPD = 80;
@@ -108,7 +108,7 @@ export class GanttView extends TextFileView {
   private lastPointerType = "mouse";
   private fmtCache = new Map<string, Intl.DateTimeFormat>();
 
-  constructor(leaf: WorkspaceLeaf, private plugin: BarGanttPlugin) {
+  constructor(leaf: WorkspaceLeaf, private plugin: GanttNotesPlugin) {
     super(leaf);
     this.ppd = plugin.settings.defaultPpd;
   }
@@ -207,8 +207,8 @@ export class GanttView extends TextFileView {
   private buildDom() {
     const c = this.contentEl;
     c.empty();
-    c.addClass("bar-gantt-host");
-    this.rootEl = c.createDiv({ cls: "bar-gantt" });
+    c.addClass("gantt-notes-host");
+    this.rootEl = c.createDiv({ cls: "gantt-notes" });
 
     // toolbar
     const bar = this.rootEl.createDiv({ cls: "g-toolbar" });
