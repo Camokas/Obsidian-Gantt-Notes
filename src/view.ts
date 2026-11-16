@@ -73,7 +73,6 @@ export class GanttView extends TextFileView {
   private parsed: ParsedNote | null = null;
   private gd: GanttData = { lanes: [], bars: [], extra: [] };
   private dirty = false;
-  private saveTimer: number | null = null;
   private saveChain: Promise<void> = Promise.resolve();
   private diskBase = "";
   private pendingExternalText: string | null = null;
@@ -141,7 +140,6 @@ export class GanttView extends TextFileView {
   getViewData(): string {
     if (!this.dirty || !this.parsed) return this.raw;
     this.raw = buildNote(this.parsed, this.gd);
-    this.data = this.raw;
     this.dirty = false;
     return this.raw;
   }
@@ -215,7 +213,7 @@ export class GanttView extends TextFileView {
   }
 
   async onClose() {
-    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
+    await this.saveChain;
     cancelAnimationFrame(this.raf);
     cancelAnimationFrame(this.autoRaf);
     this.tipEl?.remove();
@@ -348,19 +346,15 @@ export class GanttView extends TextFileView {
     this.render();
   }
 
-  /** Save shortly after an interaction, before sync tools can scan stale data. */
+  /** Save every completed edit immediately, which is important on mobile. */
   private queueSave() {
-    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
-    this.saveTimer = window.setTimeout(() => {
-      this.saveTimer = null;
-      this.saveChain = this.saveChain
-        .then(() => this.save())
-        .then(() => {
-          this.diskBase = this.data;
-          this.pendingExternalText = null;
-        })
-        .catch((error) => this.plugin.notifySaveError(error));
-    }, 150);
+    this.saveChain = this.saveChain
+      .then(() => this.save())
+      .then(() => {
+        this.diskBase = this.data;
+        this.pendingExternalText = null;
+      })
+      .catch((error) => this.plugin.notifySaveError(error));
   }
 
   async reloadFromDisk() {

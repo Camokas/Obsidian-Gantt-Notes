@@ -23,7 +23,7 @@ Plain-text storage that syncs cleanly with [Remotely Save](https://github.com/re
 - **Smooth, theme-aware UI.** Follows your Obsidian theme (looks best in dark), animated moves, resizes and zoom. Animations can be switched off.
 - **Mobile friendly.** Long-press a bar and drag, pinch to zoom, large touch targets.
 - **Quiet by default.** Notes are written only after real edits; opening and scrolling never touch the file. Network access occurs only when you press the update button.
-- **Sync-safe editing.** Changes are written promptly, downloaded files are reloaded after Remotely Save finishes, and independent edits from two devices are merged by lane/bar ID.
+- **Sync-safe editing.** Every completed change is written immediately, downloaded files are reloaded after Remotely Save finishes, and independent edits from two devices are merged by lane/bar ID.
 - **Manual updates.** Check and install published GitHub releases from the plugin settings; GitHub is contacted only when you press the update button.
 - English and Russian interface.
 
