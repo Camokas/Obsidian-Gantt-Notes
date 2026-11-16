@@ -47,6 +47,26 @@ interface LaneEls {
   chev: HTMLElement;
 }
 
+interface Snapshot {
+  lanes: Lane[];
+  bars: Bar[];
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
+const isLane = (value: unknown): value is Lane =>
+  isObject(value) && typeof value.id === "string" && typeof value.name === "string" && typeof value.color === "string";
+const isBar = (value: unknown): value is Bar =>
+  isObject(value) &&
+  typeof value.id === "string" &&
+  typeof value.lane === "string" &&
+  typeof value.name === "string" &&
+  typeof value.start === "number" &&
+  typeof value.end === "number";
+const isSnapshot = (value: unknown): value is Snapshot =>
+  isObject(value) &&
+  Array.isArray(value.lanes) && value.lanes.every(isLane) &&
+  Array.isArray(value.bars) && value.bars.every(isBar);
+
 interface Gesture {
   kind: "move" | "rl" | "rr" | "create";
   pointerId: number;
@@ -336,7 +356,8 @@ export class GanttView extends TextFileView {
     return JSON.stringify({ lanes: this.gd.lanes, bars: this.gd.bars });
   }
   private restore(s: string) {
-    const o = JSON.parse(s);
+    const o = JSON.parse(s) as unknown;
+    if (!isSnapshot(o)) throw new Error("Invalid Gantt history snapshot");
     this.gd.lanes = o.lanes;
     this.gd.bars = o.bars;
   }
