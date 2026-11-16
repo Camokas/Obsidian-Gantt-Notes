@@ -8,6 +8,7 @@ import {
   ParsedNote,
   buildNote,
   isoOf,
+  mergeNoteChanges,
   parseNote,
   todayDay,
   uid,
@@ -72,6 +73,10 @@ export class GanttView extends TextFileView {
   private parsed: ParsedNote | null = null;
   private gd: GanttData = { lanes: [], bars: [], extra: [] };
   private dirty = false;
+  private saveTimer: number | null = null;
+  private saveChain: Promise<void> = Promise.resolve();
+  private diskBase = "";
+  private pendingExternalText: string | null = null;
 
   private ppd: number;
   private rStart = 0;
@@ -136,13 +141,28 @@ export class GanttView extends TextFileView {
   getViewData(): string {
     if (!this.dirty || !this.parsed) return this.raw;
     this.raw = buildNote(this.parsed, this.gd);
+    this.data = this.raw;
     this.dirty = false;
     return this.raw;
   }
 
   setViewData(data: string, clear: boolean): void {
+    if (!clear && this.pendingExternalText === data) return;
+    let mergedLocalChanges = false;
+    if (!clear && this.dirty && this.diskBase && data !== this.diskBase) {
+      const remote = data;
+      data = mergeNoteChanges(this.diskBase, buildNote(this.parsed!, this.gd), remote);
+      this.diskBase = remote;
+      this.pendingExternalText = remote;
+      mergedLocalChanges = true;
+      this.plugin.notifySyncMerge();
+    } else {
+      this.diskBase = data;
+      this.pendingExternalText = null;
+    }
+    this.data = data;
     this.raw = data;
-    this.dirty = false;
+    this.dirty = mergedLocalChanges;
     this.parsed = parseNote(data);
     this.gd = this.parsed.data;
     if (clear) {
@@ -154,10 +174,14 @@ export class GanttView extends TextFileView {
       this.render();
       this.updateUndoButtons();
     }
+    if (mergedLocalChanges) this.queueSave();
   }
 
   clear(): void {
     this.raw = "";
+    this.data = "";
+    this.diskBase = "";
+    this.pendingExternalText = null;
     this.parsed = null;
     this.gd = { lanes: [], bars: [], extra: [] };
     this.dirty = false;
@@ -191,6 +215,7 @@ export class GanttView extends TextFileView {
   }
 
   async onClose() {
+    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
     cancelAnimationFrame(this.raf);
     cancelAnimationFrame(this.autoRaf);
     this.tipEl?.remove();
@@ -319,8 +344,30 @@ export class GanttView extends TextFileView {
   }
   private changed() {
     this.dirty = true;
-    this.requestSave();
+    this.queueSave();
     this.render();
+  }
+
+  /** Save shortly after an interaction, before sync tools can scan stale data. */
+  private queueSave() {
+    if (this.saveTimer !== null) window.clearTimeout(this.saveTimer);
+    this.saveTimer = window.setTimeout(() => {
+      this.saveTimer = null;
+      this.saveChain = this.saveChain
+        .then(() => this.save())
+        .then(() => {
+          this.diskBase = this.data;
+          this.pendingExternalText = null;
+        })
+        .catch((error) => this.plugin.notifySaveError(error));
+    }, 150);
+  }
+
+  async reloadFromDisk() {
+    const file = this.file;
+    if (!file) return;
+    const disk = await this.app.vault.read(file);
+    if (disk !== this.data) this.setViewData(disk, false);
   }
   private mutate(fn: () => void) {
     const s = this.snap();
@@ -920,7 +967,7 @@ export class GanttView extends TextFileView {
       if (now !== g.snap) {
         this.pushUndo(g.snap);
         this.dirty = true;
-        this.requestSave();
+        this.queueSave();
       }
     }
     this.render();

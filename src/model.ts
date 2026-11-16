@@ -231,3 +231,68 @@ export function hasGanttFrontmatter(text: string): boolean {
   const m = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text);
   return !!m && new RegExp(`^${FM_KEY}\\s*:`, "m").test(m[1]);
 }
+
+// ---------- three-way merge for sync tools ----------
+
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
+/**
+ * Merge one ID-addressed record. Independent field edits are combined. If the
+ * exact same field changed differently on both devices, the still-open local
+ * view wins; deletions never discard a record modified on the other device.
+ */
+function mergeRecord<T extends { id: string }>(base: T | undefined, local: T | undefined, remote: T | undefined): T | undefined {
+  if (same(local, base)) return remote;
+  if (same(remote, base) || same(local, remote)) return local;
+  if (!local && !remote) return undefined;
+  if (!local) return same(remote, base) ? undefined : remote;
+  if (!remote) return same(local, base) ? undefined : local;
+
+  const out: Record<string, unknown> = { id: local.id };
+  const keys = new Set([...Object.keys(base ?? {}), ...Object.keys(local), ...Object.keys(remote)]);
+  keys.delete("id");
+  for (const key of keys) {
+    const bv = (base as any)?.[key];
+    const lv = (local as any)[key];
+    const rv = (remote as any)[key];
+    const value = same(lv, bv) ? rv : same(rv, bv) || same(lv, rv) ? lv : lv;
+    if (value !== undefined) out[key] = value;
+  }
+  return out as T;
+}
+
+function mergeRecords<T extends { id: string }>(base: T[], local: T[], remote: T[]): T[] {
+  const bm = new Map(base.map((x) => [x.id, x]));
+  const lm = new Map(local.map((x) => [x.id, x]));
+  const rm = new Map(remote.map((x) => [x.id, x]));
+  const order = [...remote, ...local, ...base].map((x) => x.id);
+  const seen = new Set<string>();
+  const result: T[] = [];
+  for (const id of order) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const merged = mergeRecord(bm.get(id), lm.get(id), rm.get(id));
+    if (merged) result.push(merged);
+  }
+  return result;
+}
+
+/**
+ * Three-way merge an externally replaced Gantt note with unsaved local edits.
+ * The remote note is the shell, so Markdown/frontmatter edits outside the
+ * Gantt block are preserved.
+ */
+export function mergeNoteChanges(baseText: string, localText: string, remoteText: string): string {
+  if (localText === baseText) return remoteText;
+  if (remoteText === baseText || localText === remoteText) return localText;
+
+  const base = parseNote(baseText);
+  const local = parseNote(localText);
+  const remote = parseNote(remoteText);
+  const data: GanttData = {
+    lanes: mergeRecords(base.data.lanes, local.data.lanes, remote.data.lanes),
+    bars: mergeRecords(base.data.bars, local.data.bars, remote.data.bars),
+    extra: [...new Set([...remote.data.extra, ...local.data.extra])],
+  };
+  return buildNote(remote, data);
+}

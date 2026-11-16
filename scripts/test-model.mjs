@@ -65,4 +65,28 @@ const m = await import("file:///" + out.replace(/\\/g, "/"));
 assert.ok(m.hasGanttFrontmatter("---\ngantt-plugin: timeline\n---\n"));
 assert.ok(!m.hasGanttFrontmatter("---\ntitle: x\n---\n"));
 
+// 7. independent edits from two devices merge without losing either side
+{
+  const base = m.newNoteText({
+    lanes: [{ id: "l1", name: "Lane", color: "#111" }],
+    bars: [{ id: "b1", lane: "l1", name: "Task", start: m.parseISO("2026-11-01"), end: m.parseISO("2026-11-02") }],
+    extra: [],
+  });
+  const lp = m.parseNote(base);
+  lp.data.lanes[0].name = "Local lane";
+  lp.data.bars[0].progress = 50;
+  const local = m.buildNote(lp, lp.data);
+  const rp = m.parseNote(base.replace("---\n\n", "---\n\nRemote text\n\n"));
+  rp.data.lanes[0].color = "#999";
+  rp.data.bars[0].name = "Remote task";
+  const remote = m.buildNote(rp, rp.data);
+  const merged = m.mergeNoteChanges(base, local, remote);
+  const result = m.parseNote(merged);
+  assert.equal(result.data.lanes[0].name, "Local lane");
+  assert.equal(result.data.lanes[0].color, "#999");
+  assert.equal(result.data.bars[0].name, "Remote task");
+  assert.equal(result.data.bars[0].progress, 50);
+  assert.ok(merged.includes("Remote text"));
+}
+
 console.log("model tests passed");

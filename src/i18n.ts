@@ -69,7 +69,21 @@ const en = {
   sFolderDesc: "Empty = the folder of the active note.",
   sSyncTitle: "Sync",
   sSyncInfo:
-    "A Gantt note is an ordinary Markdown file, so Remotely Save (or any sync) handles it like any other note. Edits are saved a couple of seconds after you stop; nothing runs in the background.",
+    "Gantt Notes saves an edit before sync tools scan the vault, reloads files downloaded by Remotely Save, and merges independent edits made on two devices. If both devices change the same field differently, the open local edit is kept.",
+  syncMerged: "Remote and local Gantt changes were merged",
+  saveFailed: "Gantt Notes could not save this note",
+  sUpdateTitle: "Updates",
+  sUpdateCheck: "Gantt Notes update",
+  sUpdateCurrent: "Installed version: {version}. Checks GitHub only when you press the button.",
+  sUpdateCheckButton: "Check for updates",
+  sUpdateChecking: "Checking…",
+  sUpdateLatest: "You already have the latest version.",
+  sUpdateAvailable: "Version {version} is available. Press the button again to download and install it.",
+  sUpdateDownload: "Download update",
+  sUpdateDownloading: "Downloading…",
+  sUpdateInstalled: "Version {version} is installed. Restart Obsidian to activate it.",
+  sUpdateDone: "Installed",
+  sUpdateFailed: "Update failed. Check your connection and the developer console, then try again.",
 };
 
 const ru: typeof en = {
@@ -142,7 +156,21 @@ const ru: typeof en = {
   sFolderDesc: "Пусто = папка текущей заметки.",
   sSyncTitle: "Синхронизация",
   sSyncInfo:
-    "Гант-заметка — обычный Markdown-файл, поэтому Remotely Save (и любая синхронизация) обрабатывает её как любую другую заметку. Изменения сохраняются через пару секунд после правки; в фоне ничего не работает.",
+    "Gantt Notes сохраняет правку до сканирования хранилища, перечитывает файлы, загруженные Remotely Save, и объединяет независимые изменения с двух устройств. Если одно поле изменено по-разному, сохраняется открытая локальная правка.",
+  syncMerged: "Локальные и удалённые изменения диаграммы объединены",
+  saveFailed: "Gantt Notes не удалось сохранить заметку",
+  sUpdateTitle: "Обновления",
+  sUpdateCheck: "Обновление Gantt Notes",
+  sUpdateCurrent: "Установлена версия {version}. GitHub проверяется только по нажатию кнопки.",
+  sUpdateCheckButton: "Проверить обновления",
+  sUpdateChecking: "Проверка…",
+  sUpdateLatest: "Установлена последняя версия.",
+  sUpdateAvailable: "Доступна версия {version}. Нажмите кнопку ещё раз, чтобы скачать и установить её.",
+  sUpdateDownload: "Загрузить обновление",
+  sUpdateDownloading: "Загрузка…",
+  sUpdateInstalled: "Версия {version} установлена. Перезапустите Obsidian для активации.",
+  sUpdateDone: "Установлено",
+  sUpdateFailed: "Не удалось обновиться. Проверьте подключение и консоль разработчика, затем повторите попытку.",
 };
 
 export type Key = keyof typeof en;

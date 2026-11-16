@@ -3,6 +3,7 @@ import { GanttSettings, GanttSettingTab, defaultSettings } from "./settings";
 import { GanttView, VIEW_TYPE } from "./view";
 import { FM_KEY, GanttData, PALETTE, buildNote, hasGanttFrontmatter, newNoteText, parseNote, todayDay, uid } from "./model";
 import { t } from "./i18n";
+import { findUpdate, installUpdate, type PluginUpdate } from "./updater";
 
 export default class GanttNotesPlugin extends Plugin {
   settings!: GanttSettings;
@@ -55,11 +56,18 @@ export default class GanttNotesPlugin extends Plugin {
     this.registerEvent(
       this.app.metadataCache.on("changed", (file) => {
         this.app.workspace.iterateAllLeaves((leaf) => {
-          if (this.leafPath(leaf) === file.path) this.maybeSwitch(leaf);
+          const path = leaf.view instanceof GanttView ? leaf.view.file?.path : this.leafPath(leaf);
+          if (path === file.path) {
+            this.maybeSwitch(leaf);
+            if (leaf.view instanceof GanttView) void leaf.view.reloadFromDisk();
+          }
         });
       })
     );
-    this.app.workspace.onLayoutReady(() => this.app.workspace.iterateAllLeaves((l) => this.maybeSwitch(l)));
+    this.app.workspace.onLayoutReady(() => {
+      this.app.workspace.iterateAllLeaves((l) => this.maybeSwitch(l));
+      this.connectRemotelySave();
+    });
   }
 
   onunload() {
@@ -74,6 +82,33 @@ export default class GanttNotesPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
     this.app.workspace.getLeavesOfType(VIEW_TYPE).forEach((l) => (l.view as GanttView).applySettings());
+  }
+
+  notifySyncMerge() {
+    new Notice(t("syncMerged"));
+  }
+
+  notifySaveError(error: unknown) {
+    console.error("Gantt Notes: could not save", error);
+    new Notice(t("saveFailed"));
+  }
+
+  private connectRemotelySave() {
+    const remote = (this.app as any).plugins?.plugins?.["remotely-save"];
+    const ref = remote?.syncEvent?.on?.("SYNC_DONE", () => {
+      for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
+        if (leaf.view instanceof GanttView) void leaf.view.reloadFromDisk();
+      }
+    });
+    if (ref) this.registerEvent(ref);
+  }
+
+  async checkForUpdate(): Promise<PluginUpdate | null> {
+    return findUpdate(this.manifest.version);
+  }
+
+  async installUpdate(update: PluginUpdate): Promise<void> {
+    await installUpdate(this.app.vault.adapter, this.app.vault.configDir, this.manifest, update);
   }
 
   // ------------------------------------------------------ view switching

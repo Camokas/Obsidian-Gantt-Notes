@@ -22,7 +22,9 @@ Plain-text storage that syncs cleanly with [Remotely Save](https://github.com/re
 - **Undo / redo** (Ctrl+Z / Ctrl+Y) for every change.
 - **Smooth, theme-aware UI.** Follows your Obsidian theme (looks best in dark), animated moves, resizes and zoom. Animations can be switched off.
 - **Mobile friendly.** Long-press a bar and drag, pinch to zoom, large touch targets.
-- **Nothing in the background.** No timers, watchers or network calls. The note is written only after a real edit (debounced ~2 s); opening and scrolling never touch the file.
+- **Quiet by default.** Notes are written only after real edits; opening and scrolling never touch the file. Network access occurs only when you press the update button.
+- **Sync-safe editing.** Changes are written promptly, downloaded files are reloaded after Remotely Save finishes, and independent edits from two devices are merged by lane/bar ID.
+- **Manual updates.** Check and install published GitHub releases from the plugin settings; GitHub is contacted only when you press the update button.
 - English and Russian interface.
 
 ## Install
@@ -79,10 +81,14 @@ Source layout: `src/model.ts` (format and dates), `src/view.ts` (timeline UI and
 
 Releases are built by GitHub Actions when a `v*` tag is pushed.
 
+## Sync behaviour
+
+Gantt Notes follows Obsidian's `TextFileView` contract, so an open chart reloads when Remotely Save replaces its Markdown file. If local edits and a downloaded version overlap, independent field changes are combined. When the same field was changed differently on both devices, the still-open local edit wins. Remotely Save's own conflict policy still applies before the file reaches Gantt Notes.
+
 ## Known limitations
 
 - No read-only preview when a Gantt note is embedded in another note (`![[...]]`) or shown in Reading view; there you see the code block.
-- If a sync tool replaces the file while you are mid-edit, the version from disk is loaded (no merge).
+- A true same-field conflict cannot be combined automatically; the open local value is kept.
 
 ## License
 
