@@ -121,40 +121,5 @@ export class GanttSettingTab extends PluginSettingTab {
 
     new Setting(containerEl).setName(t("sSyncTitle")).setHeading();
     containerEl.createEl("p", { text: t("sSyncInfo"), cls: "setting-item-description" });
-
-    new Setting(containerEl).setName(t("sUpdateTitle")).setHeading();
-    let available: Awaited<ReturnType<GanttNotesPlugin["checkForUpdate"]>> = null;
-    const updateSetting = new Setting(containerEl).setName(t("sUpdateCheck")).setDesc(
-      t("sUpdateCurrent").replace("{version}", this.plugin.manifest.version)
-    );
-    updateSetting.addButton((button) =>
-      button.setButtonText(t("sUpdateCheckButton")).onClick(async () => {
-        let installed = false;
-        button.setDisabled(true).setButtonText(available ? t("sUpdateDownloading") : t("sUpdateChecking"));
-        try {
-          if (!available) {
-            available = await this.plugin.checkForUpdate();
-            if (!available) {
-              updateSetting.setDesc(t("sUpdateLatest"));
-              button.setButtonText(t("sUpdateCheckButton"));
-              return;
-            }
-            updateSetting.setDesc(t("sUpdateAvailable").replace("{version}", available.version));
-            button.setButtonText(t("sUpdateDownload"));
-            return;
-          }
-          await this.plugin.installUpdate(available);
-          installed = true;
-          updateSetting.setDesc(t("sUpdateInstalled").replace("{version}", available.version));
-          button.setButtonText(t("sUpdateDone"));
-        } catch (error) {
-          console.error("Gantt Notes update failed", error);
-          updateSetting.setDesc(t("sUpdateFailed"));
-          button.setButtonText(available ? t("sUpdateDownload") : t("sUpdateCheckButton"));
-        } finally {
-          if (!installed) button.setDisabled(false);
-        }
-      })
-    );
   }
 }

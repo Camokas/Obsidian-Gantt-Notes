@@ -22,9 +22,8 @@ Plain-text storage that syncs cleanly with [Remotely Save](https://github.com/re
 - **Undo / redo** (Ctrl+Z / Ctrl+Y) for every change.
 - **Smooth, theme-aware UI.** Follows your Obsidian theme (looks best in dark), animated moves, resizes and zoom. Animations can be switched off.
 - **Mobile friendly.** Long-press a bar and drag, pinch to zoom, large touch targets.
-- **Quiet by default.** Notes are written only after real edits; opening and scrolling never touch the file. Network access occurs only when you press the update button.
+- **Quiet by default.** Notes are written only after real edits; opening and scrolling never touch the file. Gantt Notes makes no network requests.
 - **Sync-safe editing.** Every completed change is written immediately, downloaded files are reloaded after Remotely Save finishes, and independent edits from two devices are merged by lane/bar ID.
-- **Manual updates.** Check and install published GitHub releases from the plugin settings; GitHub is contacted only when you press the update button.
 - English and Russian interface.
 
 ## Install
@@ -83,7 +82,7 @@ Releases are built by GitHub Actions when a `v*` tag is pushed.
 
 ## Sync behaviour
 
-Gantt Notes follows Obsidian's `TextFileView` contract, so an open chart reloads when Remotely Save replaces its Markdown file. If local edits and a downloaded version overlap, independent field changes are combined. When the same field was changed differently on both devices, the still-open local edit wins. Remotely Save's own conflict policy still applies before the file reaches Gantt Notes.
+Gantt Notes follows Obsidian's `TextFileView` contract and public file events, so an open chart reloads when Remotely Save replaces its Markdown file. If local edits and a downloaded version overlap, independent field changes are combined. When the same field was changed differently on both devices, the still-open local edit wins. Remotely Save's own conflict policy still applies before the file reaches Gantt Notes.
 
 ## Known limitations
 

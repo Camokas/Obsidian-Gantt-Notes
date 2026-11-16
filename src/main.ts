@@ -3,7 +3,6 @@ import { GanttSettings, GanttSettingTab, defaultSettings } from "./settings";
 import { GanttView, VIEW_TYPE } from "./view";
 import { FM_KEY, GanttData, PALETTE, buildNote, hasGanttFrontmatter, newNoteText, parseNote, todayDay, uid } from "./model";
 import { t } from "./i18n";
-import { findUpdate, installUpdate, type PluginUpdate } from "./updater";
 
 export default class GanttNotesPlugin extends Plugin {
   settings!: GanttSettings;
@@ -64,10 +63,7 @@ export default class GanttNotesPlugin extends Plugin {
         });
       })
     );
-    this.app.workspace.onLayoutReady(() => {
-      this.app.workspace.iterateAllLeaves((l) => this.maybeSwitch(l));
-      this.connectRemotelySave();
-    });
+    this.app.workspace.onLayoutReady(() => this.app.workspace.iterateAllLeaves((l) => this.maybeSwitch(l)));
   }
 
   onunload() {
@@ -91,24 +87,6 @@ export default class GanttNotesPlugin extends Plugin {
   notifySaveError(error: unknown) {
     console.error("Gantt Notes: could not save", error);
     new Notice(t("saveFailed"));
-  }
-
-  private connectRemotelySave() {
-    const remote = (this.app as any).plugins?.plugins?.["remotely-save"];
-    const ref = remote?.syncEvent?.on?.("SYNC_DONE", () => {
-      for (const leaf of this.app.workspace.getLeavesOfType(VIEW_TYPE)) {
-        if (leaf.view instanceof GanttView) void leaf.view.reloadFromDisk();
-      }
-    });
-    if (ref) this.registerEvent(ref);
-  }
-
-  async checkForUpdate(): Promise<PluginUpdate | null> {
-    return findUpdate(this.manifest.version);
-  }
-
-  async installUpdate(update: PluginUpdate): Promise<void> {
-    await installUpdate(this.app.vault.adapter, this.app.vault.configDir, this.manifest, update);
   }
 
   // ------------------------------------------------------ view switching
