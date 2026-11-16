@@ -1,6 +1,6 @@
 /* Gantt Notes — follows the active Obsidian theme (dark by default looks best) */
 
-.gantt-notes-host { padding: 0 !important; overflow: hidden; }
+.workspace-leaf-content[data-type="gantt-notes-view"] .gantt-notes-host { padding: 0; overflow: hidden; }
 
 .gantt-notes {
   --g-ease: cubic-bezier(0.22, 0.8, 0.2, 1);
@@ -73,7 +73,6 @@
   position: relative; flex: 1; overflow: auto; outline: none;
   overscroll-behavior: contain;
   touch-action: pan-x pan-y;
-  scrollbar-width: thin;
 }
 .gantt-notes .g-inner {
   position: relative;
@@ -130,6 +129,7 @@
 }
 .gantt-notes .g-lane.entering { animation: g-lane-in 380ms var(--g-ease); }
 .gantt-notes .g-lane.leaving { opacity: 0; border-bottom-color: transparent; }
+.gantt-notes .g-lane.collapsing { height: 0; }
 @keyframes g-lane-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 
 .gantt-notes .g-label {
@@ -215,7 +215,7 @@ body.is-mobile .gantt-notes .g-lane-add { opacity: 0.8; }
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5), 0 0 0 2px color-mix(in srgb, var(--c) 55%, white);
   transform: translateY(-1px);
 }
-.gantt-notes.is-dragging, .gantt-notes.is-dragging * { cursor: grabbing !important; }
+.gantt-notes.is-dragging, .gantt-notes.is-dragging * { cursor: grabbing; }
 .gantt-notes.is-dragging .g-bar:not(.dragging) { pointer-events: none; }
 
 .gantt-notes .g-bar-fill {
@@ -235,10 +235,10 @@ body.is-mobile .gantt-notes .g-lane-add { opacity: 0.8; }
 /* narrow bars: label sits to the right of the bar */
 .gantt-notes .g-bar.is-narrow { padding: 0; overflow: visible; }
 .gantt-notes .g-bar.is-narrow .g-bar-label {
-  position: absolute; left: 100%; margin-left: 8px; overflow: visible;
+  position: absolute; left: 100%; margin-left: 8px;
   color: var(--text-normal); text-shadow: none; max-width: 260px; overflow: hidden;
 }
-.gantt-notes .g-bar.is-narrow .g-bar-ic { display: none !important; }
+.gantt-notes .g-bar.is-narrow .g-bar-ic { display: none; }
 
 /* resize handles */
 .gantt-notes .g-h {
@@ -312,10 +312,10 @@ body.is-mobile .gantt-notes .g-h-r { right: -9px; }
 
 /* ---------- motion preferences ---------- */
 .gantt-notes.no-anim *, .gantt-notes.no-anim *::before, .gantt-notes.no-anim *::after {
-  transition: none !important; animation: none !important;
+  transition: none; animation: none;
 }
 @media (prefers-reduced-motion: reduce) {
-  .gantt-notes *, .gantt-notes *::before, .gantt-notes *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; }
+  .gantt-notes *, .gantt-notes *::before, .gantt-notes *::after { transition-duration: 1ms; animation-duration: 1ms; }
 }
 
 /* ---------- phones ---------- */

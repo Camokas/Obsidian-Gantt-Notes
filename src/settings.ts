@@ -67,14 +67,14 @@ export class GanttSettingTab extends PluginSettingTab {
     );
 
     new Setting(containerEl).setName(t("sZoom")).setDesc(t("sZoomDesc")).addSlider((c) =>
-      c.setLimits(6, 60, 1).setValue(s.defaultPpd).setDynamicTooltip().onChange(async (v) => {
+      c.setLimits(6, 60, 1).setValue(s.defaultPpd).onChange(async (v) => {
         s.defaultPpd = v;
         await save();
       })
     );
 
     new Setting(containerEl).setName(t("sLabelW")).addSlider((c) =>
-      c.setLimits(80, 320, 4).setValue(s.labelWidth).setDynamicTooltip().onChange(async (v) => {
+      c.setLimits(80, 320, 4).setValue(s.labelWidth).onChange(async (v) => {
         s.labelWidth = v;
         await save();
       })

@@ -106,7 +106,7 @@ export class BarModal extends Modal {
     swatches(colorRow.controlEl, d.color, (c) => (d.color = c), true);
 
     new Setting(contentEl).setName(t("progress")).addSlider((c) =>
-      c.setLimits(0, 100, 5).setValue(d.progress ?? 0).setDynamicTooltip().onChange((v) => (d.progress = v || undefined))
+      c.setLimits(0, 100, 5).setValue(d.progress ?? 0).onChange((v) => (d.progress = v || undefined))
     );
 
     const noteSetting = new Setting(contentEl).setName(t("note"));

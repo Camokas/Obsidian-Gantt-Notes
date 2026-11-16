@@ -47,7 +47,7 @@ export default class GanttNotesPlugin extends Plugin {
           i
             .setTitle(t("newNote"))
             .setIcon("gantt-chart")
-            .onClick(() => this.createGanttNote((file as any).path))
+            .onClick(() => this.createGanttNote(file.path))
         );
       })
     );
@@ -73,7 +73,8 @@ export default class GanttNotesPlugin extends Plugin {
   // ------------------------------------------------------------- settings
 
   async loadSettings() {
-    this.settings = Object.assign(defaultSettings(), await this.loadData());
+    const saved = (await this.loadData()) as Partial<GanttSettings> | null;
+    this.settings = Object.assign(defaultSettings(), saved ?? {});
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -124,14 +125,14 @@ export default class GanttNotesPlugin extends Plugin {
     const path = st.state?.file ?? (leaf.view as MarkdownView).file?.path;
     if (!path) return;
     this.mdOverride.delete(leaf);
-    void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true, popstate: true } as any);
+    void leaf.setViewState({ type: VIEW_TYPE, state: { file: path }, active: true });
   }
 
   openAsMarkdown(leaf: WorkspaceLeaf) {
     const file = (leaf.view as GanttView).file;
     if (!file) return;
     this.mdOverride.set(leaf, file.path);
-    void leaf.setViewState({ type: "markdown", state: { file: file.path, mode: "source" }, active: true, popstate: true } as any);
+    void leaf.setViewState({ type: "markdown", state: { file: file.path, mode: "source" }, active: true });
   }
 
   // ------------------------------------------------------- note creation
@@ -170,7 +171,7 @@ export default class GanttNotesPlugin extends Plugin {
     }
     const file = await vault.create(path, newNoteText(this.sampleData()));
     const leaf = this.app.workspace.getLeaf(true);
-    await leaf.setViewState({ type: VIEW_TYPE, state: { file: file.path }, active: true } as any);
+    await leaf.setViewState({ type: VIEW_TYPE, state: { file: file.path }, active: true });
     new Notice(t("noteCreated"));
   }
 
@@ -182,7 +183,8 @@ export default class GanttNotesPlugin extends Plugin {
       empty.bars = [];
       return buildNote(p, empty);
     });
-    await this.app.fileManager.processFrontMatter(file, (fm) => {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      const fm = frontmatter as Record<string, unknown>;
       if (fm[FM_KEY] === undefined) fm[FM_KEY] = "timeline";
     });
     new Notice(t("converted"));

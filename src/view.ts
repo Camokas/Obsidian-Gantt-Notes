@@ -1,4 +1,4 @@
-import { Menu, Platform, TextFileView, WorkspaceLeaf, setIcon } from "obsidian";
+import { Menu, Platform, TextFileView, WorkspaceLeaf, setIcon, type ViewStateResult } from "obsidian";
 import type GanttNotesPlugin from "./main";
 import {
   Bar,
@@ -132,8 +132,10 @@ export class GanttView extends TextFileView {
   getState() {
     return { ...super.getState(), ppd: this.ppd };
   }
-  async setState(state: any, result: any) {
-    if (state && typeof state.ppd === "number") this.ppd = clamp(state.ppd, MIN_PPD, MAX_PPD);
+  async setState(state: unknown, result: ViewStateResult) {
+    if (typeof state === "object" && state !== null && "ppd" in state && typeof state.ppd === "number") {
+      this.ppd = clamp(state.ppd, MIN_PPD, MAX_PPD);
+    }
     return super.setState(state, result);
   }
 
@@ -214,8 +216,12 @@ export class GanttView extends TextFileView {
 
   async onClose() {
     await this.saveChain;
-    cancelAnimationFrame(this.raf);
-    cancelAnimationFrame(this.autoRaf);
+    if (this.dirty) {
+      this.queueSave();
+      await this.saveChain;
+    }
+    window.cancelAnimationFrame(this.raf);
+    window.cancelAnimationFrame(this.autoRaf);
     this.tipEl?.remove();
   }
 
@@ -351,10 +357,14 @@ export class GanttView extends TextFileView {
     this.saveChain = this.saveChain
       .then(() => this.save())
       .then(() => {
-        this.diskBase = this.data;
+        this.data = this.raw;
+        this.diskBase = this.raw;
         this.pendingExternalText = null;
       })
-      .catch((error) => this.plugin.notifySaveError(error));
+      .catch((error) => {
+        this.dirty = true;
+        this.plugin.notifySaveError(error);
+      });
   }
 
   async reloadFromDisk() {
@@ -444,7 +454,7 @@ export class GanttView extends TextFileView {
 
   private scheduleRender() {
     if (this.raf) return;
-    this.raf = requestAnimationFrame(() => {
+    this.raf = window.requestAnimationFrame(() => {
       this.raf = 0;
       this.render();
     });
@@ -452,7 +462,7 @@ export class GanttView extends TextFileView {
 
   render() {
     if (!this.scroller) return;
-    cancelAnimationFrame(this.raf);
+    window.cancelAnimationFrame(this.raf);
     this.raf = 0;
     this.applyStaticVars();
 
@@ -500,15 +510,14 @@ export class GanttView extends TextFileView {
     if (key === this.headKey) return;
     this.headKey = key;
 
-    const topF = document.createDocumentFragment();
+    const topF = createFragment();
     let cursor = this.rStart;
     while (cursor <= this.rEnd) {
       const d = new Date(cursor * DAY_MS);
       const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) / DAY_MS;
       const segEnd = Math.min(next - 1, this.rEnd);
       const w = (segEnd - cursor + 1) * ppd;
-      const el = document.createElement("div");
-      el.className = "g-cell g-month";
+      const el = createDiv({ cls: "g-cell g-month" });
       el.style.left = (cursor - this.rStart) * ppd + "px";
       el.style.width = w + "px";
       const label =
@@ -526,21 +535,21 @@ export class GanttView extends TextFileView {
     }
     this.headTop.replaceChildren(topF);
 
-    const botF = document.createDocumentFragment();
+    const botF = createFragment();
     const td = todayDay();
     if (ppd >= 16) {
       for (let day = this.rStart; day <= this.rEnd; day++) {
-        const el = document.createElement("div");
+        const el = createDiv();
         const wd = weekday(day);
         el.className = "g-cell g-day" + (wd === 0 || wd === 6 ? " is-we" : "") + (day === td ? " is-today" : "");
         el.style.left = (day - this.rStart) * ppd + "px";
         el.style.width = ppd + "px";
-        const n = document.createElement("span");
+        const n = createSpan();
         n.className = "g-cell-text";
         n.textContent = String(new Date(day * DAY_MS).getUTCDate());
         el.appendChild(n);
         if (ppd >= 30) {
-          const w = document.createElement("span");
+          const w = createSpan();
           w.className = "g-cell-sub";
           w.textContent = this.fmt(day, { weekday: "short" });
           el.appendChild(w);
@@ -550,11 +559,11 @@ export class GanttView extends TextFileView {
     } else {
       const k = Math.max(1, Math.ceil(34 / (7 * ppd)));
       for (let day = this.rStart; day <= this.rEnd; day += 7 * k) {
-        const el = document.createElement("div");
+        const el = createDiv();
         el.className = "g-cell g-week";
         el.style.left = (day - this.rStart) * ppd + "px";
         el.style.width = 7 * k * ppd + "px";
-        const n = document.createElement("span");
+        const n = createSpan();
         n.className = "g-cell-text";
         n.textContent = String(new Date(day * DAY_MS).getUTCDate());
         el.appendChild(n);
@@ -671,7 +680,7 @@ export class GanttView extends TextFileView {
   private fadeOut(el: HTMLElement, collapse: boolean) {
     if (!this.plugin.settings.animations) return el.remove();
     el.addClass("leaving");
-    if (collapse) el.style.height = "0px";
+    if (collapse) el.addClass("collapsing");
     window.setTimeout(() => el.remove(), 220);
   }
 
@@ -930,9 +939,9 @@ export class GanttView extends TextFileView {
         this.scroller.scrollLeft += clamp(v, -1.5, 1.5) * 14;
         this.applyGesture(g);
       }
-      this.autoRaf = requestAnimationFrame(tick);
+      this.autoRaf = window.requestAnimationFrame(tick);
     };
-    this.autoRaf = requestAnimationFrame(tick);
+    this.autoRaf = window.requestAnimationFrame(tick);
   }
 
   private onPointerUp(e: PointerEvent) {
@@ -974,7 +983,7 @@ export class GanttView extends TextFileView {
   }
 
   private endGesture(g: Gesture, release = true) {
-    cancelAnimationFrame(this.autoRaf);
+    window.cancelAnimationFrame(this.autoRaf);
     if (g.timer) window.clearTimeout(g.timer);
     if (release) {
       try {
@@ -1066,7 +1075,7 @@ export class GanttView extends TextFileView {
         if (isNew) {
           this.restore(snapBefore);
           this.render();
-        } else this.deleteBar(bar.id);
+        } else void this.deleteBar(bar.id);
       },
       dup: () => this.duplicateBar(bar.id),
       cancel: () => {
@@ -1096,6 +1105,18 @@ export class GanttView extends TextFileView {
     if (this.plugin.settings.confirmDelete && !(await confirmDialog(this.app, t("confirmDeleteBar"), t("delete")))) return;
     this.mutate(() => {
       this.gd.bars = this.gd.bars.filter((b) => b.id !== id);
+    });
+  }
+
+  private async deleteLane(id: string) {
+    const count = this.gd.bars.filter((bar) => bar.lane === id).length;
+    if (count && this.plugin.settings.confirmDelete) {
+      const confirmed = await confirmDialog(this.app, t("confirmDeleteLane"), t("delete"));
+      if (!confirmed) return;
+    }
+    this.mutate(() => {
+      this.gd.lanes = this.gd.lanes.filter((lane) => lane.id !== id);
+      this.gd.bars = this.gd.bars.filter((bar) => bar.lane !== id);
     });
   }
 
@@ -1143,14 +1164,7 @@ export class GanttView extends TextFileView {
         this.pushUndo(before);
         this.changed();
       },
-      del: async () => {
-        const n = this.gd.bars.filter((b) => b.lane === lane.id).length;
-        if (n && this.plugin.settings.confirmDelete && !(await confirmDialog(this.app, t("confirmDeleteLane"), t("delete")))) return;
-        this.mutate(() => {
-          this.gd.lanes = this.gd.lanes.filter((l) => l.id !== lane.id);
-          this.gd.bars = this.gd.bars.filter((b) => b.lane !== lane.id);
-        });
-      },
+      del: () => void this.deleteLane(lane.id),
       move: (dir) => {
         const i = this.gd.lanes.findIndex((l) => l.id === lane.id);
         const j = i + dir;

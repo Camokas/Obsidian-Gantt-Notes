@@ -1,3 +1,5 @@
+import { getLanguage } from "obsidian";
+
 const en = {
   newNote: "New Gantt note",
   toggleView: "Toggle Gantt / Markdown view",
@@ -152,11 +154,7 @@ const ru: typeof en = {
 export type Key = keyof typeof en;
 
 function lang(): string {
-  try {
-    return (window.localStorage.getItem("language") || navigator.language || "en").toLowerCase();
-  } catch {
-    return "en";
-  }
+  return (getLanguage() || navigator.language || "en").toLowerCase();
 }
 
 export const isRu = () => lang().startsWith("ru");

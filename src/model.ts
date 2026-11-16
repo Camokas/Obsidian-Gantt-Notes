@@ -97,6 +97,9 @@ export function uid(existing?: Set<string>): string {
 
 export const emptyData = (): GanttData => ({ lanes: [], bars: [], extra: [] });
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 // ---------- parsing ----------
 
 const BLOCK_RE = /^```gantt[ \t]*\r?\n([\s\S]*?)^```[ \t]*$/m;
@@ -122,13 +125,14 @@ export function parseBlock(body: string): GanttData {
   for (const raw of body.split(/\r?\n/)) {
     const line = raw.trim();
     if (!line) continue;
-    let o: any;
+    let parsed: unknown;
     try {
-      o = JSON.parse(line);
+      parsed = JSON.parse(line) as unknown;
     } catch {
       data.extra.push(raw);
       continue;
     }
+    const o = isRecord(parsed) ? parsed : null;
     if (o && o.t === "lane" && typeof o.id === "string" && !laneIds.has(o.id)) {
       laneIds.add(o.id);
       data.lanes.push({
@@ -138,7 +142,7 @@ export function parseBlock(body: string): GanttData {
         ...(o.collapsed ? { collapsed: true } : {}),
       });
     } else if (o && o.t === "bar" && typeof o.id === "string" && !barIds.has(o.id)) {
-      let s = parseISO(o.start), e = parseISO(o.end ?? o.start);
+      let s = parseISO(String(o.start ?? "")), e = parseISO(String(o.end ?? o.start ?? ""));
       if (s === null || e === null) {
         data.extra.push(raw);
         continue;
@@ -252,10 +256,10 @@ function mergeRecord<T extends { id: string }>(base: T | undefined, local: T | u
   const keys = new Set([...Object.keys(base ?? {}), ...Object.keys(local), ...Object.keys(remote)]);
   keys.delete("id");
   for (const key of keys) {
-    const bv = (base as any)?.[key];
-    const lv = (local as any)[key];
-    const rv = (remote as any)[key];
-    const value = same(lv, bv) ? rv : same(rv, bv) || same(lv, rv) ? lv : lv;
+    const bv = (base as Record<string, unknown> | undefined)?.[key];
+    const lv = (local as Record<string, unknown>)[key];
+    const rv = (remote as Record<string, unknown>)[key];
+    const value = same(lv, bv) ? rv : lv;
     if (value !== undefined) out[key] = value;
   }
   return out as T;
