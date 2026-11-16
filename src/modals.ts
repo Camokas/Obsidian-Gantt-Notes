@@ -133,7 +133,7 @@ export class BarModal extends Modal {
         })
       );
       foot.addButton((b) =>
-        b.setIcon("trash-2").setTooltip(t("delete")).setWarning().onClick(() => {
+        b.setIcon("trash-2").setTooltip(t("delete")).setClass("mod-warning").onClick(() => {
           this.done = true;
           this.close();
           this.cb.del();
@@ -217,7 +217,7 @@ export class LaneModal extends Modal {
         })
       );
       foot.addButton((b) =>
-        b.setIcon("trash-2").setTooltip(t("delete")).setWarning().onClick(() => {
+        b.setIcon("trash-2").setTooltip(t("delete")).setClass("mod-warning").onClick(() => {
           this.done = true;
           this.close();
           this.cb.del();
@@ -253,7 +253,7 @@ export function confirmDialog(app: App, message: string, okText: string): Promis
         new Setting(this.contentEl)
           .addButton((b) => b.setButtonText(t("cancel")).onClick(() => this.close()))
           .addButton((b) =>
-            b.setButtonText(okText).setWarning().onClick(() => {
+            b.setButtonText(okText).setClass("mod-warning").onClick(() => {
               result = true;
               this.close();
             })

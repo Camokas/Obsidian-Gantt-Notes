@@ -55,11 +55,7 @@ export default class GanttNotesPlugin extends Plugin {
     this.registerEvent(
       this.app.metadataCache.on("changed", (file) => {
         this.app.workspace.iterateAllLeaves((leaf) => {
-          const path = leaf.view instanceof GanttView ? leaf.view.file?.path : this.leafPath(leaf);
-          if (path === file.path) {
-            this.maybeSwitch(leaf);
-            if (leaf.view instanceof GanttView) void leaf.view.reloadFromDisk();
-          }
+          if (this.leafPath(leaf) === file.path) this.maybeSwitch(leaf);
         });
       })
     );

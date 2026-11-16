@@ -117,6 +117,8 @@ export function parseNote(text: string): ParsedNote {
   };
 }
 
+const str = (v: unknown): string => (typeof v === "string" ? v : "");
+
 export function parseBlock(body: string): GanttData {
   const data = emptyData();
   const laneIds = new Set<string>();
@@ -137,12 +139,12 @@ export function parseBlock(body: string): GanttData {
       laneIds.add(o.id);
       data.lanes.push({
         id: o.id,
-        name: String(o.name ?? ""),
+        name: str(o.name),
         color: typeof o.color === "string" ? o.color : PALETTE[data.lanes.length % PALETTE.length],
         ...(o.collapsed ? { collapsed: true } : {}),
       });
     } else if (o && o.t === "bar" && typeof o.id === "string" && !barIds.has(o.id)) {
-      let s = parseISO(String(o.start ?? "")), e = parseISO(String(o.end ?? o.start ?? ""));
+      let s = parseISO(str(o.start)), e = parseISO(str(o.end ?? o.start));
       if (s === null || e === null) {
         data.extra.push(raw);
         continue;
@@ -151,8 +153,8 @@ export function parseBlock(body: string): GanttData {
       barIds.add(o.id);
       const bar: Bar = {
         id: o.id,
-        lane: String(o.lane ?? ""),
-        name: String(o.name ?? ""),
+        lane: str(o.lane),
+        name: str(o.name),
         start: s,
         end: e,
       };

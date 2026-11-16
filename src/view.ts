@@ -89,13 +89,20 @@ interface Gesture {
 const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
 
 export class GanttView extends TextFileView {
-  private raw = "";
+  /**
+   * Persistence model. NOTE: Obsidian's TextFileView owns fields such as `dirty`,
+   * `data`, `saving` and `lastSavedData` and resets some of them inside save().
+   * We therefore never reuse those names; instead the model carries a revision
+   * counter, and getViewData() is a pure function of (model, revision).
+   */
+  private raw = ""; // last text produced from / loaded into the model
   private parsed: ParsedNote | null = null;
   private gd: GanttData = { lanes: [], bars: [], extra: [] };
-  private dirty = false;
+  private rev = 0; // bumped on every model change
+  private serRev = 0; // revision `raw` was serialised at
+  private diskBase = ""; // last text known to be on disk (loaded or written)
   private saveChain: Promise<void> = Promise.resolve();
-  private diskBase = "";
-  private pendingExternalText: string | null = null;
+  private writeEpoch = 0; // bumped around each write, guards stale disk reads
 
   private ppd: number;
   private rStart = 0;
@@ -130,6 +137,7 @@ export class GanttView extends TextFileView {
   private raf = 0;
   private autoRaf = 0;
   private lastPointerType = "mouse";
+  private suppressClickUntil = 0;
   private fmtCache = new Map<string, Intl.DateTimeFormat>();
 
   constructor(leaf: WorkspaceLeaf, private plugin: GanttNotesPlugin) {
@@ -159,32 +167,50 @@ export class GanttView extends TextFileView {
     return super.setState(state, result);
   }
 
+  /** Called by Obsidian (also from inside save()). Idempotent and side-effect free. */
   getViewData(): string {
-    if (!this.dirty || !this.parsed) return this.raw;
-    this.raw = buildNote(this.parsed, this.gd);
-    this.dirty = false;
+    if (this.parsed && this.rev !== this.serRev) {
+      this.raw = buildNote(this.parsed, this.gd);
+      this.serRev = this.rev;
+    }
     return this.raw;
   }
 
+  /** Local edits that are not on disk yet. */
+  private hasUnsaved(): boolean {
+    return !!this.parsed && (this.rev !== this.serRev || this.raw !== this.diskBase);
+  }
+
   setViewData(data: string, clear: boolean): void {
-    if (!clear && this.pendingExternalText === data) return;
-    let mergedLocalChanges = false;
-    if (!clear && this.dirty && this.diskBase && data !== this.diskBase) {
-      const remote = data;
-      data = mergeNoteChanges(this.diskBase, buildNote(this.parsed!, this.gd), remote);
-      this.diskBase = remote;
-      this.pendingExternalText = remote;
-      mergedLocalChanges = true;
-      this.plugin.notifySyncMerge();
+    let merged = false;
+    if (!clear && this.parsed) {
+      if (this.hasUnsaved()) {
+        // The file changed under us (sync) while we hold unsaved edits.
+        if (data === this.diskBase) return; // duplicate event for a state we already merged
+        const local = this.getViewData();
+        const remote = data;
+        data = mergeNoteChanges(this.diskBase, local, remote);
+        this.diskBase = remote;
+        merged = data !== remote;
+        if (merged) this.plugin.notifySyncMerge();
+      } else if (data === this.raw) {
+        this.diskBase = data; // echo of our own write
+        return;
+      } else {
+        this.diskBase = data;
+      }
     } else {
       this.diskBase = data;
-      this.pendingExternalText = null;
     }
-    this.data = data;
     this.raw = data;
-    this.dirty = mergedLocalChanges;
     this.parsed = parseNote(data);
     this.gd = this.parsed.data;
+    this.serRev = this.rev;
+    if (!clear) {
+      // history snapshots predate the external change; undoing one would silently revert it
+      this.undoStack = [];
+      this.redoStack = [];
+    }
     if (clear) {
       this.undoStack = [];
       this.redoStack = [];
@@ -194,17 +220,16 @@ export class GanttView extends TextFileView {
       this.render();
       this.updateUndoButtons();
     }
-    if (mergedLocalChanges) this.queueSave();
+    if (merged) this.queueSave();
   }
 
   clear(): void {
     this.raw = "";
-    this.data = "";
     this.diskBase = "";
-    this.pendingExternalText = null;
     this.parsed = null;
     this.gd = { lanes: [], bars: [], extra: [] };
-    this.dirty = false;
+    this.rev = 0;
+    this.serRev = 0;
     this.undoStack = [];
     this.redoStack = [];
     this.pendingInitialScroll = true;
@@ -236,7 +261,7 @@ export class GanttView extends TextFileView {
 
   async onClose() {
     await this.saveChain;
-    if (this.dirty) {
+    if (this.hasUnsaved()) {
       this.queueSave();
       await this.saveChain;
     }
@@ -309,7 +334,7 @@ export class GanttView extends TextFileView {
     const eb = this.emptyEl.createEl("button", { cls: "mod-cta", text: t("addLane") });
     eb.addEventListener("click", () => this.addLaneInteractive());
 
-    this.tipEl = document.body.createDiv({ cls: "g-tip is-hidden" });
+    this.tipEl = activeDocument.body.createDiv({ cls: "g-tip is-hidden" });
 
     this.bindEvents();
     this.updateUndoButtons();
@@ -325,6 +350,7 @@ export class GanttView extends TextFileView {
     this.registerDomEvent(s, "lostpointercapture", (e) => {
       if (this.g?.active && e.pointerId === this.g.pointerId) this.onPointerCancel(e);
     });
+    this.registerDomEvent(s, "click", (e) => this.onClick(e));
     this.registerDomEvent(s, "dblclick", (e) => this.onDblClick(e));
     this.registerDomEvent(s, "contextmenu", (e) => this.onContextMenu(e));
     this.registerDomEvent(s, "wheel", (e) => this.onWheel(e), { passive: false });
@@ -337,6 +363,19 @@ export class GanttView extends TextFileView {
       { passive: false }
     );
     this.registerDomEvent(s, "keydown", (e) => this.onKey(e));
+
+    // App lifecycle (event driven, nothing polls): never lose edits when the
+    // app is backgrounded/killed, and pick up sync results when it returns.
+    this.registerDomEvent(activeDocument, "visibilitychange", () => {
+      if (activeDocument.visibilityState === "hidden") this.flush();
+      else void this.refreshFromDisk();
+    });
+    this.registerDomEvent(window, "pagehide", () => this.flush());
+    this.registerEvent(
+      this.app.workspace.on("active-leaf-change", (leaf) => {
+        if (leaf === this.leaf) void this.refreshFromDisk();
+      })
+    );
   }
 
   private applyStaticVars() {
@@ -368,31 +407,68 @@ export class GanttView extends TextFileView {
     this.updateUndoButtons();
   }
   private changed() {
-    this.dirty = true;
+    this.rev++;
     this.queueSave();
     this.render();
   }
 
-  /** Save every completed edit immediately, which is important on mobile. */
-  private queueSave() {
-    this.saveChain = this.saveChain
-      .then(() => this.save())
-      .then(() => {
-        this.data = this.raw;
-        this.diskBase = this.raw;
-        this.pendingExternalText = null;
-      })
-      .catch((error) => {
-        this.dirty = true;
-        this.plugin.notifySaveError(error);
-      });
+  /** A gesture finished with a real change: persist it right away. */
+  private commitGesture() {
+    this.rev++;
+    this.queueSave();
   }
 
-  async reloadFromDisk() {
+  /**
+   * Save every completed edit immediately (important on mobile, where the app
+   * can be killed at any moment). Writes are strictly sequential.
+   */
+  private queueSave() {
+    this.saveChain = this.saveChain.then(async () => {
+      if (!this.file || !this.parsed || !this.hasUnsaved()) return;
+      const file = this.file;
+      const text = this.getViewData();
+      this.writeEpoch++;
+      try {
+        await this.save();
+        // save() can skip silently (it compares against its own bookkeeping), so
+        // verify against the real file and fall back to a direct write.
+        let onDisk = await this.app.vault.read(file);
+        if (onDisk !== text) {
+          await this.app.vault.modify(file, text);
+          onDisk = await this.app.vault.read(file);
+          if (onDisk !== text) throw new Error("Gantt Notes: file content differs after write");
+        }
+        this.diskBase = text;
+      } catch (error) {
+        this.plugin.notifySaveError(error);
+      } finally {
+        this.writeEpoch++;
+      }
+    });
+  }
+
+  /** Write anything pending, e.g. when the app is about to go to the background. */
+  flush() {
+    if (this.hasUnsaved()) this.queueSave();
+  }
+
+  /**
+   * Pick up a change that sync tools made while the app was in the background.
+   * Event driven only (called when the app/leaf becomes active again).
+   */
+  async refreshFromDisk() {
     const file = this.file;
-    if (!file) return;
-    const disk = await this.app.vault.read(file);
-    if (disk !== this.data) this.setViewData(disk, false);
+    if (!file || !this.parsed) return;
+    const epoch = this.writeEpoch;
+    let text: string;
+    try {
+      text = await this.app.vault.read(file);
+    } catch {
+      return;
+    }
+    // a write started or finished while we were reading → the read may be stale
+    if (epoch % 2 === 1 || epoch !== this.writeEpoch || text === this.diskBase) return;
+    this.setViewData(text, false);
   }
   private mutate(fn: () => void) {
     const s = this.snap();
@@ -977,9 +1053,10 @@ export class GanttView extends TextFileView {
     g.timer = null;
 
     if (!g.active) {
-      // a plain click / tap
+      // A plain click / tap: the editor is opened from the `click` event that
+      // follows. Opening it here would let that click land on the modal backdrop
+      // and dismiss it again (this is what happens with taps on touch screens).
       this.g = null;
-      if (g.kind !== "create") this.editBar(g.id);
       return;
     }
     this.endGesture(g, false);
@@ -990,8 +1067,7 @@ export class GanttView extends TextFileView {
       const now = this.snap();
       if (now !== g.snap) {
         this.pushUndo(g.snap);
-        this.dirty = true;
-        this.queueSave();
+        this.commitGesture();
       }
     }
     this.render();
@@ -1013,6 +1089,7 @@ export class GanttView extends TextFileView {
         /* ignore */
       }
     }
+    if (g.active) this.suppressClickUntil = performance.now() + 400; // the click that ends a drag is not a tap
     this.rootEl.removeClass("is-dragging");
     this.barEls.get(g.id)?.removeClass("dragging");
     this.tipEl.addClass("is-hidden");
@@ -1028,6 +1105,12 @@ export class GanttView extends TextFileView {
       this.restore(g.snap);
       this.render();
     }
+  }
+
+  private onClick(e: MouseEvent) {
+    if (performance.now() < this.suppressClickUntil) return;
+    const barEl = (e.target as HTMLElement).closest<HTMLElement>(".g-bar");
+    if (barEl?.dataset.id) this.editBar(barEl.dataset.id);
   }
 
   private onDblClick(e: MouseEvent) {
@@ -1081,8 +1164,13 @@ export class GanttView extends TextFileView {
   private openBarModal(bar: Bar, isNew: boolean, snapBefore: string) {
     new BarModal(this.app, bar, this.gd.lanes, isNew, {
       save: (nb) => {
-        const cur = this.barById(bar.id);
-        if (!cur) return;
+        let cur = this.barById(bar.id);
+        if (!cur) {
+          // the model was replaced (sync) while the dialog was open: keep the user's input
+          if (!isNew) return;
+          cur = { ...nb };
+          this.gd.bars.push(cur);
+        }
         const before = isNew ? snapBefore : this.snap();
         Object.assign(cur, nb);
         // drop optional fields that were cleared

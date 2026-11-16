@@ -1,7 +1,7 @@
 {
   "id": "gantt-notes",
   "name": "Gantt Notes",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "minAppVersion": "1.8.7",
   "description": "Gantt timeline in a note: lanes, draggable bars, notes. Plain-text storage, friendly to Remotely Save.",
   "author": "Camoka",
